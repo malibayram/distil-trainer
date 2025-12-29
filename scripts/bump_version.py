@@ -44,7 +44,7 @@ def main():
 
     project_root = Path(__file__).parent.parent
     pyproject_path = project_root / "pyproject.toml"
-    init_path = project_root / "src/transformer_cloner/__init__.py"
+    init_path = project_root / "src/distil_trainer/__init__.py"
 
     if not pyproject_path.exists():
         print(f"Error: {pyproject_path} not found")

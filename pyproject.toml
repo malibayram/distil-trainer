@@ -1,11 +1,11 @@
 [project]
 name = "distil-trainer"
-version = "0.1.0"
+version = "0.1.2"
 description = "A comprehensive knowledge distillation training framework for transformer models"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Ali Bayram", email = "malibayram@gmail.com"}
+    {name = "Ali Bayram", email = "malibayram20@gmail.com"}
 ]
 requires-python = ">=3.10"
 classifiers = [

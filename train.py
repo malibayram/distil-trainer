@@ -2,9 +2,15 @@ import json
 import subprocess
 import sys
 import shutil
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
 from distil_trainer import DistilTrainer, DistilTrainerConfig, DistillationConfig, TrainingConfig
+from distil_trainer.core.config import HubConfig, WandbConfig
+
+# Load environment variables from .env file
+load_dotenv()
 
 # 1. Ensure protobuf is installed (Fixes ImportError)
 try:
@@ -65,6 +71,18 @@ def main():
             per_device_train_batch_size=8,    # Default is 64
             per_device_eval_batch_size=8,     # Default is 64
             gradient_accumulation_steps=8,    # Compensate with gradient accumulation
+            report_to=["wandb"],              # Enable wandb logging
+        ),
+        # Push to HuggingFace Hub after training
+        hub_config=HubConfig(
+            push_to_hub=True,
+            hub_model_id="alibayram/distilled-sentence-transformer",
+            hub_token=os.getenv("HF_TOKEN"),
+        ),
+        # Weights & Biases logging
+        wandb_config=WandbConfig(
+            project="distil-trainer",
+            name="embedding-distillation",
         ),
     )
 
@@ -79,4 +97,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

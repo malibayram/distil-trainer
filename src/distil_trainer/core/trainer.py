@@ -765,6 +765,7 @@ class DistilTrainer:
                 repo_id=repo_id,
                 private=self.config.hub_config.hub_private_repo,
                 commit_message=commit_message,
+                token=self.config.hub_config.hub_token,
             )
             logger.info(f"Pushed model to Hub: {url}")
         except Exception as e:
@@ -811,6 +812,7 @@ class DistilTrainer:
         repo_id: str,
         private: bool = False,
         commit_message: str = "Upload distilled model",
+        token: str | None = None,
     ) -> str:
         """
         Push the model to HuggingFace Hub.
@@ -819,6 +821,7 @@ class DistilTrainer:
             repo_id: Repository ID on HuggingFace Hub.
             private: Whether the repository should be private.
             commit_message: Commit message for the upload.
+            token: HuggingFace Hub token for authentication.
 
         Returns:
             URL of the uploaded model.
@@ -828,10 +831,12 @@ class DistilTrainer:
                 repo_id=repo_id,
                 private=private,
                 commit_message=commit_message,
+                token=token,
             )
         else:
             return self.student_model.push_to_hub(
                 repo_id=repo_id,
                 private=private,
                 commit_message=commit_message,
+                token=token,
             )

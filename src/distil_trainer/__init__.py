@@ -16,7 +16,7 @@ from distil_trainer.core.config import (
 )
 from distil_trainer.core.trainer import DistilTrainer
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __author__ = "Ali Bayram"
 __email__ = "malibayram@gmail.com"
 

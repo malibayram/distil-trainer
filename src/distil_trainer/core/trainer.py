@@ -638,6 +638,10 @@ class DistilTrainer:
 
         # Get student embeddings
         student_output = self.student_model(batch)
+        
+        # SentenceTransformer returns a dict with 'sentence_embedding' key
+        if isinstance(student_output, dict) and "sentence_embedding" in student_output:
+            student_output = student_output["sentence_embedding"]
 
         # Get teacher embeddings (from precomputed or compute on-the-fly)
         if "label" in batch:
@@ -690,6 +694,10 @@ class DistilTrainer:
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
                 student_output = self.student_model(batch)
+                
+                # SentenceTransformer returns a dict with 'sentence_embedding' key
+                if isinstance(student_output, dict) and "sentence_embedding" in student_output:
+                    student_output = student_output["sentence_embedding"]
 
                 if "label" in batch:
                     teacher_output = batch["label"]

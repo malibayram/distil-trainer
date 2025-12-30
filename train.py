@@ -4,7 +4,7 @@ import sys
 import shutil
 from pathlib import Path
 from huggingface_hub import snapshot_download
-from distil_trainer import DistilTrainer, DistilTrainerConfig, DataConfig
+from distil_trainer import DistilTrainer, DistilTrainerConfig, DistillationConfig, TrainingConfig
 
 # 1. Ensure protobuf is installed (Fixes ImportError)
 try:
@@ -51,23 +51,32 @@ def main():
     student_model_id = "alibayram/cloned_sentence_transformer"
     local_student_path = get_patched_student_model(student_model_id)
 
-    # Configure Trainer
+    # Configure Trainer with memory-saving settings
     config = DistilTrainerConfig(
         teacher_model="google/embeddinggemma-300m",
         student_model=local_student_path,  # Use local path with fix
         output_dir="./distilled_model",
         device="cuda",
-        
-        # Configure data directly in config
-        data_config=DataConfig(
-            train_data="alibayram/cosmos-corpus-00-5",
-            text_column="text",
-            batch_size=32 # Adjust based on GPU memory
-        )
+        # Reduce batch sizes to prevent CUDA OOM
+        distillation_config=DistillationConfig(
+            teacher_inference_batch_size=16,  # Default is 128
+        ),
+        training_config=TrainingConfig(
+            per_device_train_batch_size=8,    # Default is 64
+            per_device_eval_batch_size=8,     # Default is 64
+            gradient_accumulation_steps=8,    # Compensate with gradient accumulation
+        ),
     )
 
     trainer = DistilTrainer(config)
+
+    trainer.load_data(
+        train_data="alibayram/cosmos-corpus-00-5",
+        text_column="text",
+        max_samples=500
+    )
     trainer.train()
 
 if __name__ == "__main__":
     main()
+

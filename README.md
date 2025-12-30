@@ -76,6 +76,19 @@ trainer = DistilTrainer(config)
 trainer.load_data(train_data="sentence-transformers/all-nli")
 trainer.train()
 trainer.save_model("./final_model")
+trainer.save_model("./final_model")
+```
+
+### Custom Dataset Columns
+
+If your dataset uses different column names (e.g., "text" instead of "sentence"), you can specify this when loading data:
+
+```python
+# Load dataset with custom text column
+trainer.load_data(
+    train_data="alibayram/cosmos-corpus-00-5",
+    text_column="text"
+)
 ```
 
 ### Layer Reduction (Depth Pruning)

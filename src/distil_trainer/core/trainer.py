@@ -340,6 +340,7 @@ class DistilTrainer:
             embeddings = self.teacher_model.encode(
                 sentences,
                 convert_to_numpy=False,
+                convert_to_tensor=True,
                 show_progress_bar=True,
                 batch_size=batch_size,
             )
@@ -349,7 +350,12 @@ class DistilTrainer:
                 embeddings = self.teacher_projection(embeddings)
 
         # Add embeddings to dataset
-        self.train_dataset = self.train_dataset.add_column("label", embeddings.cpu().tolist())
+        if isinstance(embeddings, torch.Tensor):
+            embeddings_list = embeddings.cpu().tolist()
+        else:
+            # Already a list (e.g., when encode returns list directly)
+            embeddings_list = embeddings
+        self.train_dataset = self.train_dataset.add_column("label", embeddings_list)
 
         logger.info("Teacher embeddings precomputed and cached")
 
@@ -364,6 +370,28 @@ class DistilTrainer:
             raise ValueError("Training dataset required. Call load_data() first.")
 
         logger.info("Starting distillation training...")
+
+        # Setup WandB
+        is_wandb_avail = False
+        if "wandb" in self.config.training_config.report_to or (self.config.wandb_config.project is not None):
+            try:
+                import wandb
+                from dataclasses import asdict
+                
+                # Check if already initialized
+                if wandb.run is None:
+                    wandb.init(
+                        project=self.config.wandb_config.project,
+                        entity=self.config.wandb_config.entity,
+                        name=self.config.wandb_config.name or self.config.training_config.run_name,
+                        tags=self.config.wandb_config.tags,
+                        group=self.config.wandb_config.group,
+                        notes=self.config.wandb_config.notes,
+                        config=asdict(self.config),
+                    )
+                is_wandb_avail = True
+            except ImportError:
+                logger.warning("wandb not installed, skipping logging")
 
         # Setup PCA if needed
         if self.config.distillation_config.use_pca_projection:
@@ -394,6 +422,8 @@ class DistilTrainer:
         self.student_model.train()
         self.global_step = 0
 
+        avg_epoch_loss = 0.0
+
         for epoch in range(num_epochs):
             epoch_loss = 0.0
             num_batches = 0
@@ -411,12 +441,24 @@ class DistilTrainer:
                 num_batches += 1
                 self.global_step += 1
 
-                progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
+                current_loss = loss.item()
+                progress_bar.set_postfix({"loss": f"{current_loss:.4f}"})
 
                 # Logging
                 if self.global_step % training_config.logging_steps == 0:
                     avg_loss = epoch_loss / num_batches
                     logger.info(f"Step {self.global_step}: loss = {avg_loss:.4f}")
+                    
+                    if is_wandb_avail:
+                        wandb.log(
+                            {
+                                "train/loss": current_loss,
+                                "train/avg_loss": avg_loss,
+                                "train/epoch": epoch + (num_batches / len(train_dataloader)),
+                                "train/learning_rate": self.scheduler.get_last_lr()[0],
+                            },
+                            step=self.global_step
+                        )
 
                 # Evaluation
                 if (
@@ -425,6 +467,10 @@ class DistilTrainer:
                 ):
                     eval_metrics = self.evaluate()
                     logger.info(f"Step {self.global_step}: {eval_metrics}")
+                    
+                    if is_wandb_avail:
+                        wandb_metrics = {f"eval/{k}": v for k, v in eval_metrics.items()}
+                        wandb.log(wandb_metrics, step=self.global_step)
 
                     # Save best model
                     if self._is_better_metric(eval_metrics):
@@ -442,6 +488,9 @@ class DistilTrainer:
             avg_epoch_loss = epoch_loss / num_batches
             logger.info(f"Epoch {epoch + 1} completed: avg_loss = {avg_epoch_loss:.4f}")
 
+            if is_wandb_avail:
+                wandb.log({"train/epoch_loss": avg_epoch_loss}, step=self.global_step)
+
             if training_config.max_steps > 0 and self.global_step >= training_config.max_steps:
                 break
 
@@ -450,6 +499,13 @@ class DistilTrainer:
         # Load best model if configured
         if training_config.load_best_model_at_end:
             self._load_checkpoint("best")
+        
+        # Push to Hub at end if configured
+        if self.config.hub_config.push_to_hub:
+             self._push_to_hub_with_config()
+
+        if is_wandb_avail:
+            wandb.finish()
 
         return {"train_loss": avg_epoch_loss}
 
@@ -666,6 +722,30 @@ class DistilTrainer:
             self.student_model.save_pretrained(output_dir)
 
         logger.info(f"Saved checkpoint: {output_dir}")
+
+        # Push to Hub Logic
+        if self.config.hub_config.push_to_hub and self.config.hub_config.push_to_hub_interval == "every_save":
+             self._push_to_hub_with_config(commit_message=f"Upload checkpoint {name}")
+
+    def _push_to_hub_with_config(self, commit_message: str = "Upload distilled model") -> None:
+        """Helper to push to hub using config settings."""
+        if not self.config.hub_config.push_to_hub:
+            return
+            
+        repo_id = self.config.hub_config.hub_model_id
+        if not repo_id:
+             logger.warning("push_to_hub is True but hub_model_id is not set. Skipping push.")
+             return
+             
+        try:
+            url = self.push_to_hub(
+                repo_id=repo_id,
+                private=self.config.hub_config.hub_private_repo,
+                commit_message=commit_message,
+            )
+            logger.info(f"Pushed model to Hub: {url}")
+        except Exception as e:
+            logger.error(f"Failed to push to Hub: {e}")
 
     def _load_checkpoint(self, name: str) -> None:
         """Load a checkpoint."""

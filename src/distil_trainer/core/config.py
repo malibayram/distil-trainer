@@ -287,6 +287,27 @@ class ReasoningDistillationConfig:
 
 
 @dataclass
+class WandbConfig:
+    """Configuration for Weights & Biases logging."""
+    project: str = "distil-trainer"
+    entity: str | None = None
+    name: str | None = None
+    tags: list[str] = field(default_factory=list)
+    group: str | None = None
+    notes: str | None = None
+
+
+@dataclass
+class HubConfig:
+    """Configuration for HuggingFace Hub integration."""
+    push_to_hub: bool = False
+    hub_model_id: str | None = None
+    hub_token: str | None = None
+    hub_private_repo: bool = False
+    push_to_hub_interval: Literal["every_save", "end"] = "end"
+
+
+@dataclass
 class DistilTrainerConfig:
     """Main configuration for distillation training."""
 
@@ -331,3 +352,7 @@ class DistilTrainerConfig:
     # Logging
     logging_dir: str | None = None
     seed: int = 42
+
+    # Integrations
+    wandb_config: WandbConfig = field(default_factory=WandbConfig)
+    hub_config: HubConfig = field(default_factory=HubConfig)

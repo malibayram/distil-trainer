@@ -1,6 +1,6 @@
 [project]
 name = "distil-trainer"
-version = "0.1.4"
+version = "0.1.5"
 description = "A comprehensive knowledge distillation training framework for transformer models"
 readme = "README.md"
 license = {text = "MIT"}
@@ -43,6 +43,7 @@ dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "tqdm>=4.65.0",
+    "protobuf",
 ]
 
 [project.optional-dependencies]

@@ -7,6 +7,7 @@ from distil_trainer.data.datasets import (
     ParallelSentencesDataset,
 )
 from distil_trainer.data.collators import DistillationCollator
+from distil_trainer.data.embeddings_generator import TeacherEmbeddingsGenerator
 from distil_trainer.data.loaders import DatasetLoaders
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "ParallelSentencesDataset",
     "DistillationCollator",
     "DatasetLoaders",
+    "TeacherEmbeddingsGenerator",
 ]

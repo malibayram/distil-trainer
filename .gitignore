@@ -87,3 +87,5 @@ checkpoints/
 # OS
 .DS_Store
 Thumbs.db
+
+demo.ipynb

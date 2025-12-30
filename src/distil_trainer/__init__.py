@@ -15,8 +15,9 @@ from distil_trainer.core.config import (
     TrainingConfig,
 )
 from distil_trainer.core.trainer import DistilTrainer
+from distil_trainer.data.embeddings_generator import TeacherEmbeddingsGenerator
 
-__version__ = "0.1.13"
+__version__ = "0.1.14"
 __author__ = "Ali Bayram"
 __email__ = "malibayram@gmail.com"
 
@@ -26,6 +27,8 @@ __all__ = [
     "DistilTrainerConfig",
     "DistillationConfig",
     "TrainingConfig",
+    # Data
+    "TeacherEmbeddingsGenerator",
     # Version
     "__version__",
 ]

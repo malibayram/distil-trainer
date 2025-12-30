@@ -832,6 +832,7 @@ class DistilTrainer:
                 private=private,
                 commit_message=commit_message,
                 token=token,
+                exist_ok=True,
             )
         else:
             return self.student_model.push_to_hub(

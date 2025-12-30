@@ -88,7 +88,7 @@ class TestCollators:
         batch = [{"sentence": "Hello"}, {"sentence": "World"}]
 
         result = collator(batch)
-        assert result["sentence"] == ["Hello", "World"]
+        assert result["texts"] == ["Hello", "World"]
 
 
 class TestLayers:

@@ -246,23 +246,31 @@ class DistilTrainer:
     def _load_dataset(self, data: str | Dataset, split: str = "train") -> Dataset:
         """Load a dataset from a path or name."""
         if isinstance(data, Dataset):
-            return data
+            dataset = data
+        else:
+            logger.info(f"Loading dataset: {data}")
 
-        logger.info(f"Loading dataset: {data}")
-
-        try:
-            dataset = load_dataset(data, split=split)
-        except Exception:
-            # Try loading as a DatasetDict and getting the split
-            dataset_dict = load_dataset(data)
-            if isinstance(dataset_dict, DatasetDict):
-                if split in dataset_dict:
-                    dataset = dataset_dict[split]
+            try:
+                dataset = load_dataset(data, split=split)
+            except Exception:
+                # Try loading as a DatasetDict and getting the split
+                dataset_dict = load_dataset(data)
+                if isinstance(dataset_dict, DatasetDict):
+                    if split in dataset_dict:
+                        dataset = dataset_dict[split]
+                    else:
+                        # Use the first available split
+                        dataset = list(dataset_dict.values())[0]
                 else:
-                    # Use the first available split
-                    dataset = list(dataset_dict.values())[0]
-            else:
-                dataset = dataset_dict
+                    dataset = dataset_dict
+
+        # Apply max_samples limit if configured
+        max_samples = self.config.data_config.max_samples
+        if max_samples is not None and max_samples > 0:
+            original_size = len(dataset)
+            if max_samples < original_size:
+                dataset = dataset.select(range(max_samples))
+                logger.info(f"Limited dataset from {original_size} to {max_samples} samples")
 
         return dataset
 

@@ -55,7 +55,10 @@ class DistillationCollator:
         # Extract text
         texts = [sample.get(self.text_column, sample.get("sentence", "")) for sample in batch]
 
-        # Tokenize if tokenizer is available
+        # Always keep raw texts for teacher model to use its own tokenizer
+        result = {"texts": texts}
+
+        # Tokenize if tokenizer is available (for student model)
         if self.tokenizer is not None:
             encoded = self.tokenizer(
                 texts,
@@ -64,9 +67,7 @@ class DistillationCollator:
                 max_length=self.max_length,
                 return_tensors="pt",
             )
-            result = dict(encoded)
-        else:
-            result = {self.text_column: texts}
+            result.update(dict(encoded))
 
         # Add labels if present
         if "label" in batch[0]:

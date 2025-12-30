@@ -647,8 +647,18 @@ class DistilTrainer:
         if "label" in batch:
             teacher_output = batch["label"]
         else:
+            # Use teacher's own tokenizer via encode() with raw texts
+            # This ensures teacher and student use their respective tokenizers
             with torch.no_grad():
-                teacher_output = self.teacher_model(batch)
+                texts = batch.get("texts", [])
+                teacher_output = self.teacher_model.encode(
+                    texts,
+                    convert_to_tensor=True,
+                    show_progress_bar=False,
+                    batch_size=len(texts),
+                )
+                if isinstance(teacher_output, torch.Tensor):
+                    teacher_output = teacher_output.to(self.device)
                 if self.teacher_projection is not None:
                     teacher_output = self.teacher_projection(teacher_output)
 
@@ -702,7 +712,16 @@ class DistilTrainer:
                 if "label" in batch:
                     teacher_output = batch["label"]
                 else:
-                    teacher_output = self.teacher_model(batch)
+                    # Use teacher's own tokenizer via encode() with raw texts
+                    texts = batch.get("texts", [])
+                    teacher_output = self.teacher_model.encode(
+                        texts,
+                        convert_to_tensor=True,
+                        show_progress_bar=False,
+                        batch_size=len(texts),
+                    )
+                    if isinstance(teacher_output, torch.Tensor):
+                        teacher_output = teacher_output.to(self.device)
                     if self.teacher_projection is not None:
                         teacher_output = self.teacher_projection(teacher_output)
 

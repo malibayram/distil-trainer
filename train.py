@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
+from datasets import load_dataset
 from distil_trainer import DistilTrainer, DistilTrainerConfig, DistillationConfig, TrainingConfig
 from distil_trainer.core.config import HubConfig, WandbConfig
 
@@ -88,10 +89,23 @@ def main():
 
     trainer = DistilTrainer(config)
 
+    # Load the larger gated dataset and split it
+    print("Loading dataset: alibayram/cosmos-corpus-0-05")
+    dataset = load_dataset("alibayram/cosmos-corpus-0-05", split="train")
+    print(f"Total samples: {len(dataset)}")
+    
+    # Split into 99% train and 1% eval
+    split_dataset = dataset.train_test_split(test_size=0.01, seed=42)
+    train_dataset = split_dataset["train"]
+    eval_dataset = split_dataset["test"]
+    
+    print(f"Train samples: {len(train_dataset)}")
+    print(f"Eval samples: {len(eval_dataset)}")
+
     trainer.load_data(
-        train_data="alibayram/cosmos-corpus-00-5",
-        text_column="text",
-        max_samples=500
+        train_data=train_dataset,
+        eval_data=eval_dataset,
+        text_column="text"
     )
     trainer.train()
 

@@ -216,6 +216,7 @@ class DistilTrainer:
         eval_data: str | Dataset | None = None,
         test_data: str | Dataset | None = None,
         text_column: str | None = None,
+        max_samples: int | None = None,
     ) -> None:
         """
         Load training, evaluation, and test datasets.
@@ -226,10 +227,16 @@ class DistilTrainer:
             test_data: Path or name of test dataset, or Dataset object.
             text_column: Name of the column containing text/sentences.
                         Overrides config.data_config.text_column if provided.
+            max_samples: Maximum number of samples to use from the dataset.
+                        Useful for quick testing. Overrides config.data_config.max_samples.
         """
         if text_column is not None:
             self.config.data_config.text_column = text_column
             logger.info(f"Set text_column to: {text_column}")
+
+        if max_samples is not None:
+            self.config.data_config.max_samples = max_samples
+            logger.info(f"Set max_samples to: {max_samples}")
 
         if train_data is not None:
             self.train_dataset = self._load_dataset(train_data, "train")

@@ -8,10 +8,15 @@ Usage:
 
 from distil_trainer import TeacherEmbeddingsGenerator
 
-# Initialize the generator
+# Initialize the generator with optimization options
 generator = TeacherEmbeddingsGenerator(
     teacher_model="google/embeddinggemma-300m",
     batch_size=32,  # Adjust based on your GPU memory
+    # Optimization options (for faster generation on GPU):
+    # use_bf16=True,          # bfloat16 precision (best for A100/H100)
+    # use_fp16=True,          # float16 precision (faster, less memory)
+    # compile_model=True,     # torch.compile() for PyTorch 2.0+
+    # use_flash_attention=True,  # Flash Attention 2 (if installed)
 )
 
 # Option 1: Final embeddings (generates both pre_dense AND final when Dense layer exists)

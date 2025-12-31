@@ -47,6 +47,10 @@ class TeacherEmbeddingsGenerator:
         teacher_model: str | SentenceTransformer,
         device: str = "auto",
         batch_size: int = 32,
+        use_fp16: bool = False,
+        use_bf16: bool = False,
+        compile_model: bool = False,
+        use_flash_attention: bool = False,
     ):
         """
         Initialize the generator.
@@ -55,9 +59,17 @@ class TeacherEmbeddingsGenerator:
             teacher_model: Teacher model ID or SentenceTransformer instance.
             device: Device to use ('auto', 'cuda', 'mps', 'cpu').
             batch_size: Batch size for encoding.
+            use_fp16: Use float16 precision (faster, less memory).
+            use_bf16: Use bfloat16 precision (better for A100/H100).
+            compile_model: Use torch.compile() for faster inference (PyTorch 2.0+).
+            use_flash_attention: Enable Flash Attention if available.
         """
         self.batch_size = batch_size
         self.device = self._get_device(device)
+        self.use_fp16 = use_fp16
+        self.use_bf16 = use_bf16
+        self.compile_model = compile_model
+        self.use_flash_attention = use_flash_attention
         self.teacher_model = self._load_model(teacher_model)
         self.dataset: Dataset | None = None
         self.teacher_model_id = teacher_model if isinstance(teacher_model, str) else "custom"
@@ -73,12 +85,48 @@ class TeacherEmbeddingsGenerator:
                 return torch.device("cpu")
         return torch.device(device)
     
+    def _is_flash_attention_available(self) -> bool:
+        """Check if Flash Attention 2 is available."""
+        try:
+            import flash_attn
+            return True
+        except ImportError:
+            return False
+    
     def _load_model(self, model: str | SentenceTransformer) -> SentenceTransformer:
-        """Load the teacher model."""
+        """Load and optimize the teacher model."""
         if isinstance(model, str):
             logger.info(f"Loading teacher model: {model}")
-            model = SentenceTransformer(model)
+            
+            # Enable Flash Attention via model kwargs (only if available)
+            model_kwargs = {}
+            if self.use_flash_attention:
+                if self._is_flash_attention_available():
+                    model_kwargs["attn_implementation"] = "flash_attention_2"
+                    logger.info("Enabling Flash Attention 2")
+                else:
+                    logger.warning("flash-attn not installed, skipping Flash Attention")
+            
+            model = SentenceTransformer(model, model_kwargs=model_kwargs)
+        
         model.to(self.device)
+        
+        # Apply precision conversion
+        if self.use_bf16 and self.device.type == "cuda":
+            model = model.to(dtype=torch.bfloat16)
+            logger.info("Using bfloat16 precision")
+        elif self.use_fp16:
+            model = model.half()
+            logger.info("Using float16 precision")
+        
+        # Compile model for faster inference
+        if self.compile_model:
+            try:
+                model = torch.compile(model)
+                logger.info("Model compiled with torch.compile()")
+            except Exception as e:
+                logger.warning(f"torch.compile() failed: {e}")
+        
         model.eval()
         return model
     
@@ -201,7 +249,7 @@ class TeacherEmbeddingsGenerator:
                 if embedding is not None:
                     if len(embedding.shape) == 3:
                         embedding = embedding.mean(dim=1)
-                    all_embeddings.append(embedding.cpu().numpy())
+                    all_embeddings.append(embedding.cpu().float().numpy())
         
         embeddings = np.concatenate(all_embeddings, axis=0)
         dataset = dataset.add_column("teacher_embedding_pre_dense", embeddings.tolist())
@@ -249,7 +297,7 @@ class TeacherEmbeddingsGenerator:
                     
                     if layer_key not in all_hidden_states:
                         all_hidden_states[layer_key] = []
-                    all_hidden_states[layer_key].append(pooled.cpu().numpy())
+                    all_hidden_states[layer_key].append(pooled.cpu().float().numpy())
         
         for layer_key, embeddings_list in all_hidden_states.items():
             embeddings = np.concatenate(embeddings_list, axis=0)

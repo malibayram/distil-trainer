@@ -328,6 +328,10 @@ class EmbeddingDistillationTrainer:
                 # Save checkpoint
                 if self.global_step % self.config.save_steps == 0:
                     self.save_model(f"{self.config.output_dir}/checkpoint-{self.global_step}")
+                    # Push to hub at every checkpoint
+                    if self.config.push_to_hub and self.config.hub_model_id:
+                        logger.info(f"Pushing checkpoint {self.global_step} to hub...")
+                        self.push_to_hub()
             
             avg_epoch_loss = epoch_loss / num_batches
             logger.info(f"Epoch {epoch + 1}: avg_loss = {avg_epoch_loss:.4f}")

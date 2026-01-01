@@ -21,7 +21,7 @@ from distil_trainer.core.embedding_trainer import (
 )
 from distil_trainer.data.embeddings_generator import TeacherEmbeddingsGenerator
 
-__version__ = "0.1.22"
+__version__ = "0.1.25"
 __author__ = "Ali Bayram"
 __email__ = "malibayram@gmail.com"
 

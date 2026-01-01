@@ -93,6 +93,7 @@ class EmbeddingDistillationTrainer:
     def __init__(self, config: EmbeddingTrainerConfig):
         self.config = config
         self.device = self._get_device()
+        self._original_model = None  # Store uncompiled model for internal access
         self.student_model = self._load_student()
         self.optimizer = None
         self.scheduler = None
@@ -144,11 +145,15 @@ class EmbeddingDistillationTrainer:
                     module.gradient_checkpointing_enable()
             logger.info("Gradient checkpointing enabled")
         
+        # Store uncompiled model reference for operations that need internal access
+        self._original_model = model
+        
         # Compile
         if self.config.compile_model:
             try:
-                model = torch.compile(model)
+                compiled = torch.compile(model)
                 logger.info("Model compiled with torch.compile()")
+                return compiled
             except Exception as e:
                 logger.warning(f"torch.compile() failed: {e}")
         
@@ -167,16 +172,16 @@ class EmbeddingDistillationTrainer:
         return self.config.final_embedding_column
     
     def _has_dense_layer(self) -> bool:
-        for module in self.student_model:
+        for module in self._original_model:
             if module.__class__.__name__ == 'Dense':
                 return True
         return False
     
     def _get_pre_dense_index(self) -> int:
-        for idx, module in enumerate(self.student_model):
+        for idx, module in enumerate(self._original_model):
             if module.__class__.__name__ == 'Dense':
                 return idx
-        return len(self.student_model)
+        return len(self._original_model)
     
     def train(
         self,
@@ -347,13 +352,15 @@ class EmbeddingDistillationTrainer:
     
     def _forward_pre_dense(self, texts: list[str]) -> torch.Tensor:
         """Forward pass through model up to Dense layer."""
+        # Use original model for internal access (compiled model wraps it)
+        model = self._original_model
         pre_dense_idx = self._get_pre_dense_index()
         
-        features = self.student_model.tokenize(texts)
+        features = model.tokenize(texts)
         features = {k: v.to(self.device) for k, v in features.items()}
         
         for idx in range(pre_dense_idx):
-            features = self.student_model[idx](features)
+            features = model[idx](features)
         
         embedding = features.get('sentence_embedding')
         if embedding is None:
@@ -365,11 +372,13 @@ class EmbeddingDistillationTrainer:
     
     def _forward_with_gradients(self, texts: list[str]) -> torch.Tensor:
         """Forward pass through full model with gradient tracking."""
-        features = self.student_model.tokenize(texts)
+        # Use original model for internal access (compiled model wraps it)
+        model = self._original_model
+        features = model.tokenize(texts)
         features = {k: v.to(self.device) for k, v in features.items()}
         
         # Run through all modules
-        for module in self.student_model:
+        for module in model:
             features = module(features)
         
         embedding = features.get('sentence_embedding')
@@ -382,12 +391,14 @@ class EmbeddingDistillationTrainer:
     
     def save_model(self, path: str) -> None:
         """Save the student model."""
-        self.student_model.save(path)
+        # Use original model for save (compiled model doesn't have .save())
+        self._original_model.save(path)
         logger.info(f"Model saved: {path}")
     
     def push_to_hub(self) -> str:
         """Push model to HuggingFace Hub."""
-        url = self.student_model.push_to_hub(
+        # Use original model for push (compiled model doesn't have .push_to_hub())
+        url = self._original_model.push_to_hub(
             repo_id=self.config.hub_model_id,
             token=self.config.hub_token,
             exist_ok=True,

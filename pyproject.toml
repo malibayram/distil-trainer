@@ -1,6 +1,6 @@
 [project]
 name = "distil-trainer"
-version = "0.1.25"
+version = "0.1.26"
 description = "A comprehensive knowledge distillation training framework for transformer models"
 readme = "README.md"
 license = {text = "MIT"}
